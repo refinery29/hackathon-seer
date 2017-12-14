@@ -56,3 +56,17 @@
         user: "{{ jenkins_api_user }}"
         password: "{{ jenkins_api_password }}"
 
+    - name: Update Jenkins build name & description
+      uri:
+        # See http://stackoverflow.com/a/21699210/1054423 for | rationale
+        body: >
+          json={ "displayName": "{{ config.short_name }}.{{ zone }}"
+               , "description": ""}
+        force_basic_auth: yes
+        user: "{{ jenkins_api_user }}"
+        password: "{{ jenkins_api_password }}"
+        url: "{{ jenkins_url }}/createItem"
+        method: POST
+        status_code: 302
+
+
