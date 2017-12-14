@@ -1,0 +1,3 @@
+[submodule "seer"]
+	path = seer
+	url = git@github.com:refinery29/seer
