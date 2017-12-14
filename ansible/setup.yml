@@ -1,0 +1,58 @@
+---
+- hosts: localhost
+  pre_tasks:
+    - fail: msg="A `test_repository` is required"
+      when: test_repository is undefined
+    - fail: msg="A `github_token` is required"
+      when: github_token is undefined
+    - fail: msg="A `jenkins_api_user` is required"
+      when: jenkins_api_user is undefined
+    - fail: msg="A `jenkins_api_password` is required"
+      when: jenkins_api_password is undefined
+    - fail: msg="A `jenkins_url` is required"
+      when: jenkins_url is undefined
+  tasks:
+    - set_fact:
+        job_name: HackathonSeer-{{ test_repository.split('/')[1] }}
+    - set_fact:
+        jenkins_job_url: "{{ jenkins_url }}/buildByToken/buildWithParameters?job={{ job_name }}&token=seerme"
+
+    - name: Check for GitHub webhook
+      uri:
+        url: https://api.github.com/repos/{{ test_repository }}/hooks
+        headers:
+          Authorization: token {{ github_token }}
+      register: github_webhooks
+
+    - debug: var=github_webhooks
+    - debug: msg={{ github_webhooks | json_query('json[*].config.url') }}
+
+    - name: Create GitHub webhook
+      when: jenkins_job_url not in github_webhooks | json_query('json[*].config.url')
+      uri:
+        body_format: json
+        body:
+          {
+            "name": "web",
+            "active": true,
+            "events": ["pull_request"],
+            "config": {
+              "url": "{{ jenkins_job_url }}",
+              "content_type": "form"
+            }
+          }
+        url: https://api.github.com/repos/{{ test_repository }}/hooks
+        headers:
+          Authorization: token {{ github_token }}
+        method: POST
+        status_code: 201
+
+    # TODO the jenkins_job module doesn't work yet
+    - name: Create Jenkins job from template
+      jenkins_job:
+        url: "{{ jenkins_url }}"
+        config: "{{ lookup('file', 'templates/HackathonSeerJob.xml') }}"
+        name: "{{ job_name }}"
+        user: "{{ jenkins_api_user }}"
+        password: "{{ jenkins_api_password }}"
+
